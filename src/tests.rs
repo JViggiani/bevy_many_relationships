@@ -2,10 +2,8 @@ use bevy::prelude::*;
 
 use crate::prelude::*;
 
-#[derive(ManyRelationship)]
 struct KnownContact;
 
-#[derive(ManyRelationship)]
 struct FactionAlly;
 
 fn test_app() -> App {

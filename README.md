@@ -6,12 +6,9 @@ Bevy's built-in `Relationship` trait supports one-to-one relationships (each ent
 
 ## Usage
 
-Define a relationship type:
+Define a relationship type as a plain unit struct:
 
 ```rust
-use bevy_many_relationships::prelude::*;
-
-#[derive(ManyRelationship)]
 struct KnownContact;
 ```
 
@@ -52,7 +49,7 @@ fn query_system(query: Query<&OutgoingRelationships<KnownContact>>) {
 React to changes with observers:
 
 ```rust
-app.add_observer(|trigger: Trigger<OnManyRelationshipAdded<KnownContact>>| {
+app.add_observer(|trigger: On<OnManyRelationshipAdded<KnownContact>>| {
     let event = trigger.event();
     println!("Relationship added: {:?} -> {:?}", event.source, event.target);
 });

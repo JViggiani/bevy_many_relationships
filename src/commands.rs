@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-use crate::ManyRelationshipType;
 use crate::components::{IncomingRelationships, OutgoingRelationships};
 use crate::events::{OnManyRelationshipAdded, OnManyRelationshipRemoved};
 
@@ -11,7 +10,7 @@ pub trait ManyRelationshipCommands {
     /// If the relationship already exists, this is a no-op (no duplicate, no observer fired).
     /// Creates `OutgoingRelationships<R>` on source and `IncomingRelationships<R>` on target
     /// if they don't already exist.
-    fn add_many_relationship<R: ManyRelationshipType>(
+    fn add_many_relationship<R: Send + Sync + 'static>(
         &mut self,
         source: Entity,
         target: Entity,
@@ -20,7 +19,7 @@ pub trait ManyRelationshipCommands {
     /// Removes a many-to-many relationship of type `R` from `source` to `target`.
     ///
     /// If the removal causes an empty set, the component is removed entirely.
-    fn remove_many_relationship<R: ManyRelationshipType>(
+    fn remove_many_relationship<R: Send + Sync + 'static>(
         &mut self,
         source: Entity,
         target: Entity,
@@ -28,7 +27,7 @@ pub trait ManyRelationshipCommands {
 }
 
 impl ManyRelationshipCommands for Commands<'_, '_> {
-    fn add_many_relationship<R: ManyRelationshipType>(
+    fn add_many_relationship<R: Send + Sync + 'static>(
         &mut self,
         source: Entity,
         target: Entity,
@@ -40,7 +39,7 @@ impl ManyRelationshipCommands for Commands<'_, '_> {
         });
     }
 
-    fn remove_many_relationship<R: ManyRelationshipType>(
+    fn remove_many_relationship<R: Send + Sync + 'static>(
         &mut self,
         source: Entity,
         target: Entity,
@@ -53,13 +52,13 @@ impl ManyRelationshipCommands for Commands<'_, '_> {
     }
 }
 
-struct AddManyRelationshipCommand<R: ManyRelationshipType> {
+struct AddManyRelationshipCommand<R: Send + Sync + 'static> {
     source: Entity,
     target: Entity,
     _marker: std::marker::PhantomData<R>,
 }
 
-impl<R: ManyRelationshipType> Command for AddManyRelationshipCommand<R> {
+impl<R: Send + Sync + 'static> Command for AddManyRelationshipCommand<R> {
     fn apply(self, world: &mut World) {
         // Check if the relationship already exists to avoid duplicate observer fires
         let already_exists = world
@@ -93,13 +92,13 @@ impl<R: ManyRelationshipType> Command for AddManyRelationshipCommand<R> {
     }
 }
 
-struct RemoveManyRelationshipCommand<R: ManyRelationshipType> {
+struct RemoveManyRelationshipCommand<R: Send + Sync + 'static> {
     source: Entity,
     target: Entity,
     _marker: std::marker::PhantomData<R>,
 }
 
-impl<R: ManyRelationshipType> Command for RemoveManyRelationshipCommand<R> {
+impl<R: Send + Sync + 'static> Command for RemoveManyRelationshipCommand<R> {
     fn apply(self, world: &mut World) {
         // Check existence first
         let exists = world

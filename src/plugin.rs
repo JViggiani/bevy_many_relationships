@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-use crate::ManyRelationshipType;
 use crate::components::{IncomingRelationships, OutgoingRelationships};
 
 /// A no-op plugin that serves as the entry point for the many-relationships system.
@@ -22,7 +21,7 @@ impl Plugin for ManyRelationshipsPlugin {
 /// is despawned, all related entities are updated accordingly.
 ///
 /// Call this in your plugin's `build()` method for each relationship type.
-pub fn register_many_relationship<R: ManyRelationshipType>(app: &mut App) {
+pub fn register_many_relationship<R: Send + Sync + 'static>(app: &mut App) {
     // When a source entity with outgoing relationships is despawned,
     // clean up all targets' incoming sets.
     app.add_observer(cleanup_outgoing_on_despawn::<R>);
@@ -32,7 +31,7 @@ pub fn register_many_relationship<R: ManyRelationshipType>(app: &mut App) {
     app.add_observer(cleanup_incoming_on_despawn::<R>);
 }
 
-fn cleanup_outgoing_on_despawn<R: ManyRelationshipType>(
+fn cleanup_outgoing_on_despawn<R: Send + Sync + 'static>(
     trigger: On<Remove, OutgoingRelationships<R>>,
     query: Query<&OutgoingRelationships<R>>,
     mut commands: Commands,
@@ -53,7 +52,7 @@ fn cleanup_outgoing_on_despawn<R: ManyRelationshipType>(
     }
 }
 
-fn cleanup_incoming_on_despawn<R: ManyRelationshipType>(
+fn cleanup_incoming_on_despawn<R: Send + Sync + 'static>(
     trigger: On<Remove, IncomingRelationships<R>>,
     query: Query<&IncomingRelationships<R>>,
     mut commands: Commands,
@@ -74,13 +73,13 @@ fn cleanup_incoming_on_despawn<R: ManyRelationshipType>(
     }
 }
 
-struct CleanupIncomingCommand<R: ManyRelationshipType> {
+struct CleanupIncomingCommand<R: Send + Sync + 'static> {
     source: Entity,
     target: Entity,
     _marker: std::marker::PhantomData<R>,
 }
 
-impl<R: ManyRelationshipType> Command for CleanupIncomingCommand<R> {
+impl<R: Send + Sync + 'static> Command for CleanupIncomingCommand<R> {
     fn apply(self, world: &mut World) {
         let Some(mut incoming) = world.get_mut::<IncomingRelationships<R>>(self.target) else {
             return;
@@ -94,13 +93,13 @@ impl<R: ManyRelationshipType> Command for CleanupIncomingCommand<R> {
     }
 }
 
-struct CleanupOutgoingCommand<R: ManyRelationshipType> {
+struct CleanupOutgoingCommand<R: Send + Sync + 'static> {
     source: Entity,
     target: Entity,
     _marker: std::marker::PhantomData<R>,
 }
 
-impl<R: ManyRelationshipType> Command for CleanupOutgoingCommand<R> {
+impl<R: Send + Sync + 'static> Command for CleanupOutgoingCommand<R> {
     fn apply(self, world: &mut World) {
         let Some(mut outgoing) = world.get_mut::<OutgoingRelationships<R>>(self.source) else {
             return;

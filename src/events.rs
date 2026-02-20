@@ -1,10 +1,8 @@
 use bevy::prelude::*;
 
-use crate::ManyRelationshipType;
-
 /// Event fired when a many-to-many relationship of type `R` is added.
 #[derive(Event)]
-pub struct OnManyRelationshipAdded<R: ManyRelationshipType> {
+pub struct OnManyRelationshipAdded<R: Send + Sync + 'static> {
     /// The source entity (has the outgoing relationship).
     pub source: Entity,
     /// The target entity (has the incoming relationship).
@@ -12,7 +10,7 @@ pub struct OnManyRelationshipAdded<R: ManyRelationshipType> {
     _marker: std::marker::PhantomData<R>,
 }
 
-impl<R: ManyRelationshipType> OnManyRelationshipAdded<R> {
+impl<R: Send + Sync + 'static> OnManyRelationshipAdded<R> {
     pub(crate) fn new(source: Entity, target: Entity) -> Self {
         Self {
             source,
@@ -24,7 +22,7 @@ impl<R: ManyRelationshipType> OnManyRelationshipAdded<R> {
 
 /// Event fired when a many-to-many relationship of type `R` is removed.
 #[derive(Event)]
-pub struct OnManyRelationshipRemoved<R: ManyRelationshipType> {
+pub struct OnManyRelationshipRemoved<R: Send + Sync + 'static> {
     /// The source entity (had the outgoing relationship).
     pub source: Entity,
     /// The target entity (had the incoming relationship).
@@ -32,7 +30,7 @@ pub struct OnManyRelationshipRemoved<R: ManyRelationshipType> {
     _marker: std::marker::PhantomData<R>,
 }
 
-impl<R: ManyRelationshipType> OnManyRelationshipRemoved<R> {
+impl<R: Send + Sync + 'static> OnManyRelationshipRemoved<R> {
     pub(crate) fn new(source: Entity, target: Entity) -> Self {
         Self {
             source,

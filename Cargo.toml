@@ -12,23 +12,8 @@ keywords = ["bevy", "ecs", "relationships", "gamedev", "graph"]
 categories = ["game-development", "data-structures"]
 authors = ["Josh Viggiani"]
 
-[workspace]
-members = [
-  "bevy_many_relationships_derive",
-]
-
-[workspace.package]
-edition = "2024"
-
-[workspace.dependencies]
-bevy = { version = "0.17.3", default-features = false, features = ["bevy_log"] }
-syn = { version = "2.0", features = ["derive", "parsing"] }
-quote = "1.0"
-proc-macro2 = "1.0"
-
 [dependencies]
-bevy = { workspace = true }
-bevy_many_relationships_derive = { path = "bevy_many_relationships_derive", version = "0.1.0" }
+bevy = { version = "0.17.3", default-features = false, features = ["bevy_log"] }
 
 [dev-dependencies]
 bevy = { version = "0.17.3", default-features = false, features = ["bevy_log"] }

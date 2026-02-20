@@ -3,19 +3,17 @@ use std::marker::PhantomData;
 
 use bevy::prelude::*;
 
-use crate::ManyRelationshipType;
-
 /// Tracks all outgoing relationships of type `R` from this entity.
 ///
 /// Each entity in `targets` is a target of the relationship.
 /// Automatically managed by `add_many_relationship` / `remove_many_relationship` commands.
 #[derive(Component)]
-pub struct OutgoingRelationships<R: ManyRelationshipType> {
+pub struct OutgoingRelationships<R: Send + Sync + 'static> {
     targets: HashSet<Entity>,
     _marker: PhantomData<R>,
 }
 
-impl<R: ManyRelationshipType> OutgoingRelationships<R> {
+impl<R: Send + Sync + 'static> OutgoingRelationships<R> {
     pub(crate) fn new() -> Self {
         Self {
             targets: HashSet::new(),
@@ -57,12 +55,12 @@ impl<R: ManyRelationshipType> OutgoingRelationships<R> {
 /// Each entity in `sources` has an outgoing relationship to this entity.
 /// Automatically managed by `add_many_relationship` / `remove_many_relationship` commands.
 #[derive(Component)]
-pub struct IncomingRelationships<R: ManyRelationshipType> {
+pub struct IncomingRelationships<R: Send + Sync + 'static> {
     sources: HashSet<Entity>,
     _marker: PhantomData<R>,
 }
 
-impl<R: ManyRelationshipType> IncomingRelationships<R> {
+impl<R: Send + Sync + 'static> IncomingRelationships<R> {
     pub(crate) fn new() -> Self {
         Self {
             sources: HashSet::new(),
