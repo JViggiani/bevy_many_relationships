@@ -2,20 +2,28 @@ use bevy::prelude::*;
 
 use crate::prelude::*;
 
+#[derive(Default)]
 struct KnownContact;
 
+#[derive(Default)]
 struct FactionAlly;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct KnownContactDetails {
+    established_at_unix: Option<i64>,
+    known_party_phone: Option<String>,
+    known_party_email: Option<String>,
+    known_party_notes: Option<String>,
+}
 
 fn test_app() -> App {
     let mut app = App::new();
     app.add_plugins(ManyRelationshipsPlugin);
-    register_many_relationship::<KnownContact>(&mut app);
-    register_many_relationship::<FactionAlly>(&mut app);
     app
 }
 
-/// GIVEN an app with ManyRelationshipsPlugin and KnownContact registered
-/// WHEN add_many_relationship::<KnownContact>(a, b) is called and app.update() runs
+/// GIVEN an app with ManyRelationshipsPlugin
+/// WHEN entity(b).add_one_many_related::<KnownContact>(a) is called and app.update() runs
 /// THEN entity a has OutgoingRelationships<KnownContact> containing b
 /// AND entity b has IncomingRelationships<KnownContact> containing a
 #[test]
@@ -27,7 +35,8 @@ fn add_relationship_creates_outgoing_and_incoming() {
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     let outgoing = app.world().get::<OutgoingRelationships<KnownContact>>(a).unwrap();
@@ -40,7 +49,7 @@ fn add_relationship_creates_outgoing_and_incoming() {
 }
 
 /// GIVEN entity a has OutgoingRelationships<KnownContact> containing {b, c}
-/// WHEN remove_many_relationship::<KnownContact>(a, b) is called and app.update() runs
+/// WHEN entity(b).remove_many_related::<KnownContact>(&[a]) is called and app.update() runs
 /// THEN entity a has OutgoingRelationships<KnownContact> containing {c} only
 /// AND entity b no longer has IncomingRelationships<KnownContact> component (empty → removed)
 #[test]
@@ -53,12 +62,14 @@ fn remove_one_of_two_targets_keeps_remaining() {
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, c);
+        .entity(c)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     // Verify both exist
@@ -68,7 +79,8 @@ fn remove_one_of_two_targets_keeps_remaining() {
     // Remove only a→b
     app.world_mut()
         .commands()
-        .remove_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .remove_many_related::<KnownContact>(&[a]);
     app.world_mut().flush();
 
     // a still has outgoing to c
@@ -90,7 +102,7 @@ fn remove_one_of_two_targets_keeps_remaining() {
 }
 
 /// GIVEN entity a has OutgoingRelationships<KnownContact> containing {b}
-/// WHEN remove_many_relationship::<KnownContact>(a, b) is called and app.update() runs
+/// WHEN entity(b).remove_many_related::<KnownContact>(&[a]) is called and app.update() runs
 /// THEN entity a no longer has OutgoingRelationships<KnownContact> component
 /// AND entity b no longer has IncomingRelationships<KnownContact> component
 #[test]
@@ -102,12 +114,14 @@ fn remove_last_relationship_removes_components() {
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     app.world_mut()
         .commands()
-        .remove_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .remove_many_related::<KnownContact>(&[a]);
     app.world_mut().flush();
 
     assert!(
@@ -122,8 +136,8 @@ fn remove_last_relationship_removes_components() {
     );
 }
 
-/// GIVEN two relationship types KnownContact and FactionAlly are registered
-/// WHEN add_many_relationship::<KnownContact>(a, b) and add_many_relationship::<FactionAlly>(a, c)
+/// GIVEN two relationship types KnownContact and FactionAlly are used
+/// WHEN entity(b).add_one_many_related::<KnownContact>(a) and entity(c).add_one_many_related::<FactionAlly>(a)
 ///      are called
 /// THEN entity a has OutgoingRelationships<KnownContact> containing {b}
 /// AND entity a has OutgoingRelationships<FactionAlly> containing {c}
@@ -138,12 +152,14 @@ fn different_relationship_types_are_independent() {
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<FactionAlly>(a, c);
+        .entity(c)
+        .add_one_many_related::<FactionAlly>(a);
     app.world_mut().flush();
 
     let known = app
@@ -188,7 +204,7 @@ fn different_relationship_types_are_independent() {
 }
 
 /// GIVEN an observer registered for OnManyRelationshipAdded<KnownContact>
-/// WHEN add_many_relationship::<KnownContact>(a, b) is called and app.update() runs
+/// WHEN entity(b).add_one_many_related::<KnownContact>(a) is called and app.update() runs
 /// THEN the observer fires with source=a and target=b
 #[test]
 fn observer_fires_on_add() {
@@ -211,7 +227,8 @@ fn observer_fires_on_add() {
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     let observed = app.world().resource::<ObservedAdds>();
@@ -221,7 +238,7 @@ fn observer_fires_on_add() {
 
 /// GIVEN entity a has OutgoingRelationships<KnownContact> containing {b}
 /// AND an observer registered for OnManyRelationshipRemoved<KnownContact>
-/// WHEN remove_many_relationship::<KnownContact>(a, b) is called and app.update() runs
+/// WHEN entity(b).remove_many_related::<KnownContact>(&[a]) is called and app.update() runs
 /// THEN the observer fires with source=a and target=b
 #[test]
 fn observer_fires_on_remove() {
@@ -244,12 +261,14 @@ fn observer_fires_on_remove() {
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     app.world_mut()
         .commands()
-        .remove_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .remove_many_related::<KnownContact>(&[a]);
     app.world_mut().flush();
 
     let observed = app.world().resource::<ObservedRemoves>();
@@ -257,7 +276,7 @@ fn observer_fires_on_remove() {
     assert_eq!(observed.0[0], (a, b));
 }
 
-/// GIVEN add_many_relationship::<KnownContact>(a, b) is called twice
+/// GIVEN entity(b).add_one_many_related::<KnownContact>(a) is called twice
 /// WHEN app.update() runs
 /// THEN entity a has OutgoingRelationships<KnownContact> containing {b} (no duplicates)
 #[test]
@@ -280,12 +299,14 @@ fn duplicate_add_is_idempotent() {
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     let outgoing = app.world().get::<OutgoingRelationships<KnownContact>>(a).unwrap();
@@ -315,12 +336,14 @@ fn despawning_target_cleans_up_source_outgoing() {
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, c);
+        .entity(c)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     // Despawn b
@@ -347,12 +370,14 @@ fn despawning_source_cleans_up_target_incoming() {
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(c, b);
+        .entity(b)
+        .add_one_many_related::<KnownContact>(c);
     app.world_mut().flush();
 
     // Despawn a
@@ -377,7 +402,8 @@ fn despawning_only_target_removes_outgoing_component() {
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     app.world_mut().despawn(b);
@@ -412,7 +438,8 @@ fn removing_nonexistent_relationship_is_noop() {
 
     app.world_mut()
         .commands()
-        .remove_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .remove_many_related::<KnownContact>(&[a]);
     app.world_mut().flush();
 
     let observed = app.world().resource::<ObservedRemoves>();
@@ -432,17 +459,20 @@ fn queryable_via_standard_bevy_query() {
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, b);
+        .entity(b)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(a, c);
+        .entity(c)
+        .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
     app.world_mut()
         .commands()
-        .add_many_relationship::<KnownContact>(b, c);
+        .entity(c)
+        .add_one_many_related::<KnownContact>(b);
     app.world_mut().flush();
 
     // Query all entities with outgoing KnownContact relationships
@@ -463,4 +493,577 @@ fn queryable_via_standard_bevy_query() {
             assert!(outgoing.contains(c));
         }
     }
+}
+
+/// GIVEN an entity target and another source entity
+/// WHEN source is linked using EntityCommands::add_one_many_related
+/// THEN outgoing/incoming components are updated as expected
+#[test]
+fn entity_commands_add_one_many_related_works() {
+    let mut app = test_app();
+
+    let target = app.world_mut().spawn_empty().id();
+    let source = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(target)
+        .add_one_many_related::<KnownContact>(source);
+    app.world_mut().flush();
+
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(source)
+        .unwrap();
+    assert!(outgoing.contains(target));
+
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(target)
+        .unwrap();
+    assert!(incoming.contains(source));
+}
+
+/// GIVEN an entity target
+/// WHEN with_many_related is used
+/// THEN a new source entity is spawned and linked to the target
+#[test]
+fn with_many_related_spawns_and_links() {
+    let mut app = test_app();
+
+    let target = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(target)
+        .with_many_related::<KnownContact>(Name::new("spawned-source"));
+    app.world_mut().flush();
+
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(target)
+        .unwrap();
+    assert_eq!(incoming.len(), 1);
+}
+
+/// GIVEN an entity target
+/// WHEN with_many_related_entities is used to spawn two entities
+/// THEN both entities are linked to the target
+#[test]
+fn with_many_related_entities_spawns_and_links_multiple() {
+    let mut app = test_app();
+
+    let target = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(target)
+        .with_many_related_entities::<KnownContact>(|spawner| {
+            spawner.spawn(Name::new("source-a"));
+            spawner.spawn(Name::new("source-b"));
+        });
+    app.world_mut().flush();
+
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(target)
+        .unwrap();
+    assert_eq!(incoming.len(), 2);
+}
+
+#[test]
+fn add_many_related_links_multiple_sources() {
+    let mut app = test_app();
+
+    let target = app.world_mut().spawn_empty().id();
+    let source_a = app.world_mut().spawn_empty().id();
+    let source_b = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(target)
+        .add_many_related::<KnownContact>(&[source_a, source_b]);
+    app.world_mut().flush();
+
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(target)
+        .unwrap();
+    assert_eq!(incoming.len(), 2);
+    assert!(incoming.contains(source_a));
+    assert!(incoming.contains(source_b));
+
+    let outgoing_a = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(source_a)
+        .unwrap();
+    assert!(outgoing_a.contains(target));
+
+    let outgoing_b = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(source_b)
+        .unwrap();
+    assert!(outgoing_b.contains(target));
+}
+
+#[test]
+fn detach_all_many_related_removes_all_links_to_target() {
+    let mut app = test_app();
+
+    let target = app.world_mut().spawn_empty().id();
+    let source_a = app.world_mut().spawn_empty().id();
+    let source_b = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(target)
+        .add_many_related::<KnownContact>(&[source_a, source_b]);
+    app.world_mut().flush();
+
+    app.world_mut()
+        .commands()
+        .entity(target)
+        .detach_all_many_related::<KnownContact>();
+    app.world_mut().flush();
+
+    assert!(
+        app.world()
+            .get::<IncomingRelationships<KnownContact>>(target)
+            .is_none()
+    );
+    assert!(
+        app.world()
+            .get::<OutgoingRelationships<KnownContact>>(source_a)
+            .is_none()
+    );
+    assert!(
+        app.world()
+            .get::<OutgoingRelationships<KnownContact>>(source_b)
+            .is_none()
+    );
+}
+
+#[test]
+fn add_incoming_from_creates_source_to_target_edge() {
+    let mut app = test_app();
+
+    let target = app.world_mut().spawn_empty().id();
+    let source = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(target)
+        .add_incoming_from::<KnownContact>(source, KnownContact);
+    app.world_mut().flush();
+
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(source)
+        .unwrap();
+    assert!(outgoing.contains(target));
+
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(target)
+        .unwrap();
+    assert!(incoming.contains(source));
+}
+
+#[test]
+fn add_outgoing_to_creates_source_to_target_edge() {
+    let mut app = test_app();
+
+    let source = app.world_mut().spawn_empty().id();
+    let target = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(source)
+        .add_outgoing_to::<KnownContact>(target, KnownContact);
+    app.world_mut().flush();
+
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(source)
+        .unwrap();
+    assert!(outgoing.contains(target));
+
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(target)
+        .unwrap();
+    assert!(incoming.contains(source));
+}
+
+#[test]
+fn remove_incoming_from_removes_source_to_target_edge() {
+    let mut app = test_app();
+
+    let source = app.world_mut().spawn_empty().id();
+    let target = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(source)
+        .add_outgoing_to::<KnownContact>(target, KnownContact);
+    app.world_mut().flush();
+
+    app.world_mut()
+        .commands()
+        .entity(target)
+        .remove_incoming_from::<KnownContact>(source);
+    app.world_mut().flush();
+
+    assert!(
+        app.world()
+            .get::<OutgoingRelationships<KnownContact>>(source)
+            .is_none()
+    );
+    assert!(
+        app.world()
+            .get::<IncomingRelationships<KnownContact>>(target)
+            .is_none()
+    );
+}
+
+#[test]
+fn remove_outgoing_to_removes_source_to_target_edge() {
+    let mut app = test_app();
+
+    let source = app.world_mut().spawn_empty().id();
+    let target = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(source)
+        .add_outgoing_to::<KnownContact>(target, KnownContact);
+    app.world_mut().flush();
+
+    app.world_mut()
+        .commands()
+        .entity(source)
+        .remove_outgoing_to::<KnownContact>(target);
+    app.world_mut().flush();
+
+    assert!(
+        app.world()
+            .get::<OutgoingRelationships<KnownContact>>(source)
+            .is_none()
+    );
+    assert!(
+        app.world()
+            .get::<IncomingRelationships<KnownContact>>(target)
+            .is_none()
+    );
+}
+
+#[test]
+fn bevy_style_spawn_with_add_outgoing_relationships_component_works() {
+    let mut app = test_app();
+
+    let alice = app.world_mut().spawn(Name::new("Alice")).id();
+    let bob = app
+        .world_mut()
+        .spawn((
+            Name::new("Bob"),
+            AddOutgoingRelationships::<KnownContact>::one(alice, KnownContact),
+        ))
+        .id();
+
+    app.world_mut().flush();
+
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(bob)
+        .unwrap();
+    assert!(outgoing.contains(alice));
+
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(alice)
+        .unwrap();
+    assert!(incoming.contains(bob));
+
+    assert!(
+        app.world()
+            .get::<AddOutgoingRelationships<KnownContact>>(bob)
+            .is_none()
+    );
+}
+
+#[test]
+fn bevy_style_insert_add_outgoing_relationships_component_works() {
+    let mut app = test_app();
+
+    let alice = app.world_mut().spawn_empty().id();
+    let bob = app.world_mut().spawn_empty().id();
+
+    app.world_mut().entity_mut(bob).insert(
+        AddOutgoingRelationships::<KnownContact>::new([(alice, KnownContact)]),
+    );
+    app.world_mut().flush();
+
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(bob)
+        .unwrap();
+    assert!(outgoing.contains(alice));
+
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(alice)
+        .unwrap();
+    assert!(incoming.contains(bob));
+}
+
+#[test]
+fn bevy_style_add_outgoing_relationships_supports_multiple_targets() {
+    let mut app = test_app();
+
+    let alice = app.world_mut().spawn_empty().id();
+    let charlie = app.world_mut().spawn_empty().id();
+    let bob = app.world_mut().spawn_empty().id();
+
+    app.world_mut().entity_mut(bob).insert(
+        AddOutgoingRelationships::<KnownContact>::new([
+            (alice, KnownContact),
+            (charlie, KnownContact),
+        ]),
+    );
+    app.world_mut().flush();
+
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(bob)
+        .unwrap();
+    assert_eq!(outgoing.len(), 2);
+    assert!(outgoing.contains(alice));
+    assert!(outgoing.contains(charlie));
+}
+
+#[test]
+fn with_many_related_entities_supports_spawn_empty_and_target_accessor() {
+    let mut app = test_app();
+
+    let target = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(target)
+        .with_many_related_entities::<KnownContact>(|spawner| {
+            assert_eq!(spawner.target_entity(), target);
+            let source = spawner.spawn_empty().id();
+            spawner
+                .commands_mut()
+                .entity(source)
+                .insert(Name::new("spawn-empty-source"));
+        });
+    app.world_mut().flush();
+
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(target)
+        .unwrap();
+    assert_eq!(incoming.len(), 1);
+}
+
+#[test]
+fn relationship_payload_get_returns_known_party_details() {
+    let mut app = test_app();
+
+    let alice = app.world_mut().spawn_empty().id();
+    let bob = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(bob)
+        .set_incoming_from::<KnownContactDetails>(
+            alice,
+            KnownContactDetails {
+                established_at_unix: Some(1_708_934_400),
+                known_party_phone: Some("+1-555-0100".to_string()),
+                known_party_email: Some("bob@example.com".to_string()),
+                known_party_notes: Some("Met at conference".to_string()),
+            },
+        );
+    app.world_mut().flush();
+
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContactDetails>>(alice)
+        .unwrap();
+    assert!(outgoing.contains(bob));
+
+    let relationship = outgoing.get(bob).unwrap();
+    assert_eq!(relationship.known_party_email.as_deref(), Some("bob@example.com"));
+    assert_eq!(relationship.known_party_phone.as_deref(), Some("+1-555-0100"));
+}
+
+#[test]
+fn command_add_without_bool_validates_via_state_after_flush() {
+    let mut app = test_app();
+
+    let source = app.world_mut().spawn_empty().id();
+    let target = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(source)
+        .add_outgoing_to::<KnownContactDetails>(
+            target,
+            KnownContactDetails {
+                established_at_unix: Some(1),
+                known_party_phone: Some("+1-111-0000".to_string()),
+                known_party_email: Some("first@example.com".to_string()),
+                known_party_notes: None,
+            },
+        );
+    app.world_mut().flush();
+
+    app.world_mut()
+        .commands()
+        .entity(source)
+        .add_outgoing_to::<KnownContactDetails>(
+            target,
+            KnownContactDetails {
+                established_at_unix: Some(2),
+                known_party_phone: Some("+1-222-0000".to_string()),
+                known_party_email: Some("second@example.com".to_string()),
+                known_party_notes: Some("should-not-overwrite".to_string()),
+            },
+        );
+    app.world_mut().flush();
+
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContactDetails>>(source)
+        .unwrap();
+    let relationship = outgoing.get(target).unwrap();
+    assert_eq!(relationship.known_party_email.as_deref(), Some("first@example.com"));
+}
+
+#[test]
+fn command_set_without_bool_validates_via_state_after_flush() {
+    let mut app = test_app();
+
+    let source = app.world_mut().spawn_empty().id();
+    let target = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(source)
+        .set_outgoing_to::<KnownContactDetails>(
+            target,
+            KnownContactDetails {
+                established_at_unix: Some(1),
+                known_party_phone: Some("+1-111-0000".to_string()),
+                known_party_email: Some("old@example.com".to_string()),
+                known_party_notes: None,
+            },
+        );
+    app.world_mut().flush();
+
+    app.world_mut()
+        .commands()
+        .entity(source)
+        .set_outgoing_to::<KnownContactDetails>(
+            target,
+            KnownContactDetails {
+                established_at_unix: Some(2),
+                known_party_phone: Some("+1-222-0000".to_string()),
+                known_party_email: Some("new@example.com".to_string()),
+                known_party_notes: Some("updated".to_string()),
+            },
+        );
+    app.world_mut().flush();
+
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContactDetails>>(source)
+        .unwrap();
+    let relationship = outgoing.get(target).unwrap();
+    assert_eq!(relationship.known_party_email.as_deref(), Some("new@example.com"));
+}
+
+#[test]
+fn set_overwrites_existing_relationship_payload() {
+    let mut app = test_app();
+
+    let source = app.world_mut().spawn_empty().id();
+    let target = app.world_mut().spawn_empty().id();
+
+    let first_was_new = crate::commands::set_many_relationship::<KnownContactDetails>(
+        app.world_mut(),
+        source,
+        target,
+        KnownContactDetails {
+            established_at_unix: Some(1),
+            known_party_phone: Some("+1-111-0000".to_string()),
+            known_party_email: Some("old@example.com".to_string()),
+            known_party_notes: None,
+        },
+    );
+    assert!(first_was_new);
+
+    let second_was_new = crate::commands::set_many_relationship::<KnownContactDetails>(
+        app.world_mut(),
+        source,
+        target,
+        KnownContactDetails {
+            established_at_unix: Some(2),
+            known_party_phone: Some("+1-222-0000".to_string()),
+            known_party_email: Some("new@example.com".to_string()),
+            known_party_notes: Some("updated".to_string()),
+        },
+    );
+    assert!(!second_was_new);
+
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContactDetails>>(source)
+        .unwrap();
+    let relationship = outgoing.get(target).unwrap();
+    assert_eq!(relationship.known_party_email.as_deref(), Some("new@example.com"));
+    assert_eq!(relationship.known_party_phone.as_deref(), Some("+1-222-0000"));
+}
+
+#[test]
+fn add_does_not_overwrite_existing_relationship_payload() {
+    let mut app = test_app();
+
+    let source = app.world_mut().spawn_empty().id();
+    let target = app.world_mut().spawn_empty().id();
+
+    let inserted_first = crate::commands::add_many_relationship::<KnownContactDetails>(
+        app.world_mut(),
+        source,
+        target,
+        KnownContactDetails {
+            established_at_unix: Some(1),
+            known_party_phone: Some("+1-111-0000".to_string()),
+            known_party_email: Some("first@example.com".to_string()),
+            known_party_notes: None,
+        },
+    );
+    assert!(inserted_first);
+
+    let inserted_second = crate::commands::add_many_relationship::<KnownContactDetails>(
+        app.world_mut(),
+        source,
+        target,
+        KnownContactDetails {
+            established_at_unix: Some(2),
+            known_party_phone: Some("+1-222-0000".to_string()),
+            known_party_email: Some("second@example.com".to_string()),
+            known_party_notes: Some("should-not-overwrite".to_string()),
+        },
+    );
+    assert!(!inserted_second);
+
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContactDetails>>(source)
+        .unwrap();
+    let relationship = outgoing.get(target).unwrap();
+    assert_eq!(relationship.known_party_email.as_deref(), Some("first@example.com"));
 }
