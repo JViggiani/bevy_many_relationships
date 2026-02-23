@@ -248,7 +248,7 @@ fn queue_add_many_relationship<R: Send + Sync + 'static>(
     });
 }
 
-pub(crate) fn add_many_relationship<R: Send + Sync + 'static>(
+pub fn add_many_relationship<R: Send + Sync + 'static>(
     world: &mut World,
     source: Entity,
     target: Entity,
@@ -282,7 +282,7 @@ pub(crate) fn add_many_relationship<R: Send + Sync + 'static>(
     true
 }
 
-pub(crate) fn set_many_relationship<R: Send + Sync + 'static>(
+pub fn set_many_relationship<R: Send + Sync + 'static>(
     world: &mut World,
     source: Entity,
     target: Entity,
@@ -314,7 +314,7 @@ pub(crate) fn set_many_relationship<R: Send + Sync + 'static>(
     added_new
 }
 
-pub(crate) fn remove_many_relationship<R: Send + Sync + 'static>(
+pub fn remove_many_relationship<R: Send + Sync + 'static>(
     world: &mut World,
     source: Entity,
     target: Entity,
