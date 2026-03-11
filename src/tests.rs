@@ -211,14 +211,16 @@ fn observer_fires_on_add() {
     let mut app = test_app();
 
     #[derive(Resource, Default)]
-    struct ObservedAdds(Vec<(Entity, Entity)>);
+    struct ObservedAdds {
+        pairs: Vec<(Entity, Entity)>,
+    }
     app.init_resource::<ObservedAdds>();
 
     app.add_observer(
         |trigger: On<OnManyRelationshipAdded<KnownContact>>,
          mut observed: ResMut<ObservedAdds>| {
             let event = trigger.event();
-            observed.0.push((event.source, event.target));
+            observed.pairs.push((event.source, event.target));
         },
     );
 
@@ -232,8 +234,8 @@ fn observer_fires_on_add() {
     app.world_mut().flush();
 
     let observed = app.world().resource::<ObservedAdds>();
-    assert_eq!(observed.0.len(), 1);
-    assert_eq!(observed.0[0], (a, b));
+    assert_eq!(observed.pairs.len(), 1);
+    assert_eq!(observed.pairs[0], (a, b));
 }
 
 /// GIVEN entity a has OutgoingRelationships<KnownContact> containing {b}
@@ -245,14 +247,16 @@ fn observer_fires_on_remove() {
     let mut app = test_app();
 
     #[derive(Resource, Default)]
-    struct ObservedRemoves(Vec<(Entity, Entity)>);
+    struct ObservedRemoves {
+        pairs: Vec<(Entity, Entity)>,
+    }
     app.init_resource::<ObservedRemoves>();
 
     app.add_observer(
         |trigger: On<OnManyRelationshipRemoved<KnownContact>>,
          mut observed: ResMut<ObservedRemoves>| {
             let event = trigger.event();
-            observed.0.push((event.source, event.target));
+            observed.pairs.push((event.source, event.target));
         },
     );
 
@@ -272,8 +276,8 @@ fn observer_fires_on_remove() {
     app.world_mut().flush();
 
     let observed = app.world().resource::<ObservedRemoves>();
-    assert_eq!(observed.0.len(), 1);
-    assert_eq!(observed.0[0], (a, b));
+    assert_eq!(observed.pairs.len(), 1);
+    assert_eq!(observed.pairs[0], (a, b));
 }
 
 /// GIVEN entity(b).add_one_many_related::<KnownContact>(a) is called twice
@@ -284,13 +288,15 @@ fn duplicate_add_is_idempotent() {
     let mut app = test_app();
 
     #[derive(Resource, Default)]
-    struct ObservedAdds(u32);
+    struct ObservedAdds {
+        count: u32,
+    }
     app.init_resource::<ObservedAdds>();
 
     app.add_observer(
         |_trigger: On<OnManyRelationshipAdded<KnownContact>>,
          mut observed: ResMut<ObservedAdds>| {
-            observed.0 += 1;
+            observed.count += 1;
         },
     );
 
@@ -319,7 +325,7 @@ fn duplicate_add_is_idempotent() {
 
     // Observer fired only once (the second add was a no-op)
     let observed = app.world().resource::<ObservedAdds>();
-    assert_eq!(observed.0, 1);
+    assert_eq!(observed.count, 1);
 }
 
 /// GIVEN entity a has relationships to b and c
@@ -423,13 +429,15 @@ fn removing_nonexistent_relationship_is_noop() {
     let mut app = test_app();
 
     #[derive(Resource, Default)]
-    struct ObservedRemoves(u32);
+    struct ObservedRemoves {
+        count: u32,
+    }
     app.init_resource::<ObservedRemoves>();
 
     app.add_observer(
         |_trigger: On<OnManyRelationshipRemoved<KnownContact>>,
          mut observed: ResMut<ObservedRemoves>| {
-            observed.0 += 1;
+            observed.count += 1;
         },
     );
 
@@ -443,7 +451,7 @@ fn removing_nonexistent_relationship_is_noop() {
     app.world_mut().flush();
 
     let observed = app.world().resource::<ObservedRemoves>();
-    assert_eq!(observed.0, 0);
+    assert_eq!(observed.count, 0);
 }
 
 /// GIVEN multiple relationships exist between different entities
