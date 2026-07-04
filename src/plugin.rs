@@ -1,15 +1,18 @@
+use bevy::platform::collections::HashSet;
 use bevy::prelude::*;
 use std::any::TypeId;
-use std::collections::HashSet;
 
+use crate::commands::{detach_incoming_edge, detach_outgoing_edge};
 use crate::components::{IncomingRelationships, OutgoingRelationships};
 
 #[derive(Resource, Default)]
-struct RegisteredManyRelationshipTypes {
+pub(crate) struct RegisteredManyRelationshipTypes {
     type_ids: HashSet<TypeId>,
 }
 
 /// A plugin that enables many-relationship behavior.
+///
+/// Add this plugin to your [`App`] before using any many-relationship APIs.
 pub struct ManyRelationshipsPlugin;
 
 impl Plugin for ManyRelationshipsPlugin {
@@ -19,14 +22,21 @@ impl Plugin for ManyRelationshipsPlugin {
 }
 
 pub(crate) fn ensure_many_relationship_registered<R: Send + Sync + 'static>(world: &mut World) {
-    world.init_resource::<RegisteredManyRelationshipTypes>();
     let type_id = TypeId::of::<R>();
 
-    {
-        let mut registered = world.resource_mut::<RegisteredManyRelationshipTypes>();
-        if !registered.type_ids.insert(type_id) {
-            return;
+    match world.get_resource::<RegisteredManyRelationshipTypes>() {
+        Some(registered) if registered.type_ids.contains(&type_id) => return,
+        None => {
+            panic!(
+                "ManyRelationshipsPlugin must be added to the App before using many-relationship APIs"
+            );
         }
+        Some(_) => {}
+    }
+
+    let mut registered = world.resource_mut::<RegisteredManyRelationshipTypes>();
+    if !registered.type_ids.insert(type_id) {
+        return;
     }
 
     // When a source entity with outgoing relationships is despawned,
@@ -48,12 +58,11 @@ fn cleanup_outgoing_on_despawn<R: Send + Sync + 'static>(
         return;
     };
 
-    let targets: Vec<Entity> = outgoing.targets().copied().collect();
-
-    commands.queue(CleanupIncomingBatchCommand::<R> {
-        source,
-        targets,
-        _marker: std::marker::PhantomData,
+    let targets: Box<[Entity]> = outgoing.targets().collect();
+    commands.queue(move |world: &mut World| {
+        for target in targets {
+            detach_incoming_edge::<R>(world, source, target);
+        }
     });
 }
 
@@ -67,63 +76,10 @@ fn cleanup_incoming_on_despawn<R: Send + Sync + 'static>(
         return;
     };
 
-    let sources: Vec<Entity> = incoming.sources().copied().collect();
-
-    commands.queue(CleanupOutgoingBatchCommand::<R> {
-        target,
-        sources,
-        _marker: std::marker::PhantomData,
+    let sources: Box<[Entity]> = incoming.sources().collect();
+    commands.queue(move |world: &mut World| {
+        for source in sources {
+            detach_outgoing_edge::<R>(world, source, target);
+        }
     });
-}
-
-struct CleanupIncomingBatchCommand<R: Send + Sync + 'static> {
-    source: Entity,
-    targets: Vec<Entity>,
-    _marker: std::marker::PhantomData<R>,
-}
-
-impl<R: Send + Sync + 'static> Command for CleanupIncomingBatchCommand<R> {
-    fn apply(self, world: &mut World) {
-        for target in self.targets {
-            let remove_component = {
-                let Some(mut incoming) = world.get_mut::<IncomingRelationships<R>>(target) else {
-                    continue;
-                };
-                incoming.remove(&self.source);
-                incoming.is_empty()
-            };
-
-            if remove_component {
-                if let Ok(mut entity) = world.get_entity_mut(target) {
-                    entity.remove::<IncomingRelationships<R>>();
-                }
-            }
-        }
-    }
-}
-
-struct CleanupOutgoingBatchCommand<R: Send + Sync + 'static> {
-    target: Entity,
-    sources: Vec<Entity>,
-    _marker: std::marker::PhantomData<R>,
-}
-
-impl<R: Send + Sync + 'static> Command for CleanupOutgoingBatchCommand<R> {
-    fn apply(self, world: &mut World) {
-        for source in self.sources {
-            let remove_component = {
-                let Some(mut outgoing) = world.get_mut::<OutgoingRelationships<R>>(source) else {
-                    continue;
-                };
-                outgoing.remove(&self.target);
-                outgoing.is_empty()
-            };
-
-            if remove_component {
-                if let Ok(mut entity) = world.get_entity_mut(source) {
-                    entity.remove::<OutgoingRelationships<R>>();
-                }
-            }
-        }
-    }
 }

@@ -1,7 +1,5 @@
-use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
-
+use bevy::ecs::entity::{EntityHashMap, EntityHashSet};
 use bevy::ecs::lifecycle::HookContext;
 use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
@@ -14,29 +12,30 @@ use crate::commands::set_many_relationship;
 /// Automatically managed by entity-level many-relationship commands.
 #[derive(Component)]
 pub struct OutgoingRelationships<R: Send + Sync + 'static> {
-    targets: HashMap<Entity, R>,
+    targets: EntityHashMap<R>,
 }
 
 impl<R: Send + Sync + 'static> OutgoingRelationships<R> {
     pub(crate) fn new() -> Self {
-        Self { targets: HashMap::new() }
+        Self {
+            targets: EntityHashMap::default(),
+        }
     }
 
     /// Adds a relationship if absent.
     /// Returns `true` if inserted, `false` if an entry already existed.
-    pub fn add(&mut self, entity: Entity, relationship: R) -> bool {
-        match self.targets.entry(entity) {
-            Entry::Vacant(vacant) => {
-                vacant.insert(relationship);
-                true
-            }
-            Entry::Occupied(_) => false,
+    pub(crate) fn add(&mut self, entity: Entity, relationship: R) -> bool {
+        if self.targets.contains_key(&entity) {
+            false
+        } else {
+            self.targets.insert(entity, relationship);
+            true
         }
     }
 
     /// Sets (upserts) a relationship, replacing an existing value if present.
     /// Returns the previous value when replaced.
-    pub fn set(&mut self, entity: Entity, relationship: R) -> Option<R> {
+    pub(crate) fn set(&mut self, entity: Entity, relationship: R) -> Option<R> {
         self.targets.insert(entity, relationship)
     }
 
@@ -45,13 +44,15 @@ impl<R: Send + Sync + 'static> OutgoingRelationships<R> {
     }
 
     /// Returns an iterator over all target entities.
-    pub fn targets(&self) -> impl Iterator<Item = &Entity> {
-        self.targets.keys()
+    pub fn targets(&self) -> impl Iterator<Item = Entity> {
+        self.targets.keys().copied()
     }
 
     /// Returns an iterator over all outgoing edges and their relationship payloads.
     pub fn iter(&self) -> impl Iterator<Item = (Entity, &R)> {
-        self.targets.iter().map(|(entity, relationship)| (*entity, relationship))
+        self.targets
+            .iter()
+            .map(|(entity, relationship)| (*entity, relationship))
     }
 
     /// Returns a relationship payload for the given target entity.
@@ -84,16 +85,21 @@ impl<R: Send + Sync + 'static> OutgoingRelationships<R> {
 ///
 /// Each entity in `sources` has an outgoing relationship to this entity.
 /// Automatically managed by entity-level many-relationship commands.
+///
+/// Payloads are stored only on the source's [`OutgoingRelationships`]. To read a
+/// payload for an incoming edge, fetch the source entity's outgoing map via
+/// [`get_relationship_payload`](crate::commands::get_relationship_payload) or
+/// query `OutgoingRelationships<R>` on the source.
 #[derive(Component)]
 pub struct IncomingRelationships<R: Send + Sync + 'static> {
-    sources: HashSet<Entity>,
-    _marker: PhantomData<R>,
+    sources: EntityHashSet,
+    _marker: PhantomData<R>, 
 }
 
 impl<R: Send + Sync + 'static> IncomingRelationships<R> {
     pub(crate) fn new() -> Self {
         Self {
-            sources: HashSet::new(),
+            sources: EntityHashSet::default(),
             _marker: PhantomData,
         }
     }
@@ -107,8 +113,8 @@ impl<R: Send + Sync + 'static> IncomingRelationships<R> {
     }
 
     /// Returns an iterator over all source entities.
-    pub fn sources(&self) -> impl Iterator<Item = &Entity> {
-        self.sources.iter()
+    pub fn sources(&self) -> impl Iterator<Item = Entity> {
+        self.sources.iter().copied()
     }
 
     /// Returns true if the given entity is a source of this relationship.
@@ -148,8 +154,8 @@ impl<R: Send + Sync + 'static> AddOutgoingRelationships<R> {
         }
     }
 
-    pub fn targets(&self) -> impl Iterator<Item = &Entity> {
-        self.relationships.iter().map(|(target, _)| target)
+    pub fn targets(&self) -> impl Iterator<Item = Entity> + '_ {
+        self.relationships.iter().map(|(target, _)| *target)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (Entity, &R)> {

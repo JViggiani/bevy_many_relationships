@@ -1075,3 +1075,103 @@ fn add_does_not_overwrite_existing_relationship_payload() {
     let relationship = outgoing.get(target).unwrap();
     assert_eq!(relationship.known_party_email.as_deref(), Some("first@example.com"));
 }
+
+// -----------------------------------------------------------------------------
+// Encapsulation and despawn semantics
+// -----------------------------------------------------------------------------
+
+/// `OutgoingRelationships::add`/`set` are `pub(crate)` so external callers cannot
+/// bypass reverse-index maintenance. Topology changes must go through the
+/// world-level APIs (`add_many_relationship`, `set_many_relationship`, etc.).
+#[test]
+fn direct_outgoing_mutation_is_not_public_api() {
+    let mut app = test_app();
+
+    let source = app.world_mut().spawn_empty().id();
+    let target = app.world_mut().spawn_empty().id();
+
+    add_many_relationship::<KnownContact>(app.world_mut(), source, target, KnownContact);
+
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(source)
+        .unwrap();
+    assert!(outgoing.contains(target));
+
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(target)
+        .unwrap();
+    assert!(incoming.contains(source));
+}
+
+/// Despawn-driven edge cleanup emits `OnManyRelationshipRemoved` so listeners
+/// stay consistent with explicit removals.
+#[test]
+fn despawn_cleanup_emits_removed_event() {
+    let mut app = test_app();
+
+    #[derive(Resource, Default)]
+    struct ObservedRemoves {
+        count: u32,
+    }
+    app.init_resource::<ObservedRemoves>();
+    app.add_observer(
+        |_trigger: On<OnManyRelationshipRemoved<KnownContact>>,
+         mut observed: ResMut<ObservedRemoves>| {
+            observed.count += 1;
+        },
+    );
+
+    let a = app.world_mut().spawn_empty().id();
+    let b = app.world_mut().spawn_empty().id();
+
+    app.world_mut()
+        .commands()
+        .entity(b)
+        .add_one_many_related::<KnownContact>(a);
+    app.world_mut().flush();
+
+    app.world_mut().despawn(b);
+    app.world_mut().flush();
+
+    assert!(
+        app.world()
+            .get::<OutgoingRelationships<KnownContact>>(a)
+            .is_none(),
+        "edge should have been cleaned up on despawn"
+    );
+
+    let observed = app.world().resource::<ObservedRemoves>();
+    assert_eq!(
+        observed.count, 1,
+        "despawn cleanup should emit OnManyRelationshipRemoved for the lost edge"
+    );
+}
+
+#[test]
+fn get_relationship_payload_reads_from_source_outgoing_map() {
+    let mut app = test_app();
+
+    let source = app.world_mut().spawn_empty().id();
+    let target = app.world_mut().spawn_empty().id();
+
+    set_many_relationship::<KnownContactDetails>(
+        app.world_mut(),
+        source,
+        target,
+        KnownContactDetails {
+            established_at_unix: Some(42),
+            known_party_phone: None,
+            known_party_email: Some("payload@example.com".to_string()),
+            known_party_notes: None,
+        },
+    );
+
+    let payload = get_relationship_payload::<KnownContactDetails>(app.world(), source, target)
+        .expect("payload should resolve via source outgoing map");
+    assert_eq!(
+        payload.known_party_email.as_deref(),
+        Some("payload@example.com")
+    );
+}

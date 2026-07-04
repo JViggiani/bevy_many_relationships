@@ -167,7 +167,7 @@ impl<'a> ManyRelatedEntityCommands for EntityCommands<'a> {
                     return;
                 };
 
-                let sources: Vec<Entity> = incoming.sources().copied().collect();
+                let sources: Box<[Entity]> = incoming.sources().collect();
                 for source in sources {
                     remove_many_relationship::<R>(world, source, target);
                 }
@@ -321,34 +321,87 @@ pub fn remove_many_relationship<R: Send + Sync + 'static>(
 ) -> bool {
     ensure_many_relationship_registered::<R>(world);
 
-    let (removed, source_empty) = if let Some(mut outgoing) = world.get_mut::<OutgoingRelationships<R>>(source) {
-        let removed = outgoing.remove(&target).is_some();
-        (removed, outgoing.is_empty())
-    } else {
-        (false, false)
-    };
-
-    if !removed {
+    if !clear_outgoing_edge::<R>(world, source, target) {
         return false;
     }
+
+    let _ = clear_incoming_edge::<R>(world, source, target);
+    world.trigger(OnManyRelationshipRemoved::<R>::new(source, target));
+
+    true
+}
+
+/// Returns the relationship payload for an incoming edge by reading the source's
+/// outgoing map. Payloads are stored once on [`OutgoingRelationships`]; this is
+/// the supported way to resolve payload data from the target side.
+pub fn get_relationship_payload<R: Send + Sync + 'static>(
+    world: &World,
+    source: Entity,
+    target: Entity,
+) -> Option<&R> {
+    world
+        .get::<OutgoingRelationships<R>>(source)
+        .and_then(|outgoing| outgoing.get(target))
+}
+
+pub(crate) fn detach_incoming_edge<R: Send + Sync + 'static>(
+    world: &mut World,
+    source: Entity,
+    target: Entity,
+) {
+    if clear_incoming_edge::<R>(world, source, target) {
+        world.trigger(OnManyRelationshipRemoved::<R>::new(source, target));
+    }
+}
+
+pub(crate) fn detach_outgoing_edge<R: Send + Sync + 'static>(
+    world: &mut World,
+    source: Entity,
+    target: Entity,
+) {
+    if clear_outgoing_edge::<R>(world, source, target) {
+        world.trigger(OnManyRelationshipRemoved::<R>::new(source, target));
+    }
+}
+
+fn clear_outgoing_edge<R: Send + Sync + 'static>(
+    world: &mut World,
+    source: Entity,
+    target: Entity,
+) -> bool {
+    let source_empty = if let Some(mut outgoing) = world.get_mut::<OutgoingRelationships<R>>(source) {
+        if outgoing.remove(&target).is_none() {
+            return false;
+        }
+        outgoing.is_empty()
+    } else {
+        return false;
+    };
 
     if source_empty {
         world.entity_mut(source).remove::<OutgoingRelationships<R>>();
     }
 
-    // Remove from target's incoming set
+    true
+}
+
+fn clear_incoming_edge<R: Send + Sync + 'static>(
+    world: &mut World,
+    source: Entity,
+    target: Entity,
+) -> bool {
     let target_empty = if let Some(mut incoming) = world.get_mut::<IncomingRelationships<R>>(target) {
-        incoming.remove(&source);
+        if !incoming.remove(&source) {
+            return false;
+        }
         incoming.is_empty()
     } else {
-        false
+        return false;
     };
 
     if target_empty {
         world.entity_mut(target).remove::<IncomingRelationships<R>>();
     }
-
-    world.trigger(OnManyRelationshipRemoved::<R>::new(source, target));
 
     true
 }
@@ -361,6 +414,8 @@ struct AddManyRelationshipCommand<R: Send + Sync + 'static> {
 }
 
 impl<R: Send + Sync + 'static> Command for AddManyRelationshipCommand<R> {
+    type Out = ();
+
     fn apply(self, world: &mut World) {
         let _ = add_many_relationship::<R>(world, self.source, self.target, self.relationship);
     }
