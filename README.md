@@ -4,6 +4,14 @@ A Bevy plugin for many-to-many relationships between entities.
 
 Bevy's built-in `Relationship` trait supports one-to-one relationships (each entity has at most one component of a given relationship type). Many game mechanics require many-to-many: a character knows many NPCs, an NPC is known by many characters. This library provides that.
 
+## Bevy Version Support
+
+| Bevy | bevy_many_relationships |
+| --- | --- |
+| 0.11 | 0.1.x |
+| 0.18 | 0.3.x |
+| 0.19 | 0.2.x (yanked) |
+
 ## Concepts
 
 - `OutgoingRelationships<R>` stores `source -> target` edges for relationship payload type `R`.

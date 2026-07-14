@@ -414,8 +414,6 @@ struct AddManyRelationshipCommand<R: Send + Sync + 'static> {
 }
 
 impl<R: Send + Sync + 'static> Command for AddManyRelationshipCommand<R> {
-    type Out = ();
-
     fn apply(self, world: &mut World) {
         let _ = add_many_relationship::<R>(world, self.source, self.target, self.relationship);
     }
