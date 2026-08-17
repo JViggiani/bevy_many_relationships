@@ -39,11 +39,17 @@ fn add_relationship_creates_outgoing_and_incoming() {
         .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
-    let outgoing = app.world().get::<OutgoingRelationships<KnownContact>>(a).unwrap();
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(a)
+        .unwrap();
     assert!(outgoing.contains(b));
     assert_eq!(outgoing.len(), 1);
 
-    let incoming = app.world().get::<IncomingRelationships<KnownContact>>(b).unwrap();
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(b)
+        .unwrap();
     assert!(incoming.contains(a));
     assert_eq!(incoming.len(), 1);
 }
@@ -73,7 +79,10 @@ fn remove_one_of_two_targets_keeps_remaining() {
     app.world_mut().flush();
 
     // Verify both exist
-    let outgoing = app.world().get::<OutgoingRelationships<KnownContact>>(a).unwrap();
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(a)
+        .unwrap();
     assert_eq!(outgoing.len(), 2);
 
     // Remove only a→b
@@ -84,7 +93,10 @@ fn remove_one_of_two_targets_keeps_remaining() {
     app.world_mut().flush();
 
     // a still has outgoing to c
-    let outgoing = app.world().get::<OutgoingRelationships<KnownContact>>(a).unwrap();
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(a)
+        .unwrap();
     assert!(!outgoing.contains(b));
     assert!(outgoing.contains(c));
     assert_eq!(outgoing.len(), 1);
@@ -97,7 +109,10 @@ fn remove_one_of_two_targets_keeps_remaining() {
     );
 
     // c still has incoming from a
-    let incoming = app.world().get::<IncomingRelationships<KnownContact>>(c).unwrap();
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(c)
+        .unwrap();
     assert!(incoming.contains(a));
 }
 
@@ -217,8 +232,7 @@ fn observer_fires_on_add() {
     app.init_resource::<ObservedAdds>();
 
     app.add_observer(
-        |trigger: On<OnManyRelationshipAdded<KnownContact>>,
-         mut observed: ResMut<ObservedAdds>| {
+        |trigger: On<OnManyRelationshipAdded<KnownContact>>, mut observed: ResMut<ObservedAdds>| {
             let event = trigger.event();
             observed.pairs.push((event.source, event.target));
         },
@@ -315,11 +329,17 @@ fn duplicate_add_is_idempotent() {
         .add_one_many_related::<KnownContact>(a);
     app.world_mut().flush();
 
-    let outgoing = app.world().get::<OutgoingRelationships<KnownContact>>(a).unwrap();
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(a)
+        .unwrap();
     assert_eq!(outgoing.len(), 1);
     assert!(outgoing.contains(b));
 
-    let incoming = app.world().get::<IncomingRelationships<KnownContact>>(b).unwrap();
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(b)
+        .unwrap();
     assert_eq!(incoming.len(), 1);
     assert!(incoming.contains(a));
 
@@ -356,7 +376,10 @@ fn despawning_target_cleans_up_source_outgoing() {
     app.world_mut().despawn(b);
 
     // a should still have outgoing to c but not b
-    let outgoing = app.world().get::<OutgoingRelationships<KnownContact>>(a).unwrap();
+    let outgoing = app
+        .world()
+        .get::<OutgoingRelationships<KnownContact>>(a)
+        .unwrap();
     assert!(!outgoing.contains(b));
     assert!(outgoing.contains(c));
     assert_eq!(outgoing.len(), 1);
@@ -390,7 +413,10 @@ fn despawning_source_cleans_up_target_incoming() {
     app.world_mut().despawn(a);
 
     // b should still have incoming from c but not a
-    let incoming = app.world().get::<IncomingRelationships<KnownContact>>(b).unwrap();
+    let incoming = app
+        .world()
+        .get::<IncomingRelationships<KnownContact>>(b)
+        .unwrap();
     assert!(!incoming.contains(a));
     assert!(incoming.contains(c));
     assert_eq!(incoming.len(), 1);
@@ -806,9 +832,12 @@ fn bevy_style_insert_add_outgoing_relationships_component_works() {
     let alice = app.world_mut().spawn_empty().id();
     let bob = app.world_mut().spawn_empty().id();
 
-    app.world_mut().entity_mut(bob).insert(
-        AddOutgoingRelationships::<KnownContact>::new([(alice, KnownContact)]),
-    );
+    app.world_mut()
+        .entity_mut(bob)
+        .insert(AddOutgoingRelationships::<KnownContact>::new([(
+            alice,
+            KnownContact,
+        )]));
     app.world_mut().flush();
 
     let outgoing = app
@@ -832,12 +861,12 @@ fn bevy_style_add_outgoing_relationships_supports_multiple_targets() {
     let charlie = app.world_mut().spawn_empty().id();
     let bob = app.world_mut().spawn_empty().id();
 
-    app.world_mut().entity_mut(bob).insert(
-        AddOutgoingRelationships::<KnownContact>::new([
+    app.world_mut()
+        .entity_mut(bob)
+        .insert(AddOutgoingRelationships::<KnownContact>::new([
             (alice, KnownContact),
             (charlie, KnownContact),
-        ]),
-    );
+        ]));
     app.world_mut().flush();
 
     let outgoing = app
@@ -903,8 +932,14 @@ fn relationship_payload_get_returns_known_party_details() {
     assert!(outgoing.contains(bob));
 
     let relationship = outgoing.get(bob).unwrap();
-    assert_eq!(relationship.known_party_email.as_deref(), Some("bob@example.com"));
-    assert_eq!(relationship.known_party_phone.as_deref(), Some("+1-555-0100"));
+    assert_eq!(
+        relationship.known_party_email.as_deref(),
+        Some("bob@example.com")
+    );
+    assert_eq!(
+        relationship.known_party_phone.as_deref(),
+        Some("+1-555-0100")
+    );
 }
 
 #[test]
@@ -947,7 +982,10 @@ fn command_add_without_bool_validates_via_state_after_flush() {
         .get::<OutgoingRelationships<KnownContactDetails>>(source)
         .unwrap();
     let relationship = outgoing.get(target).unwrap();
-    assert_eq!(relationship.known_party_email.as_deref(), Some("first@example.com"));
+    assert_eq!(
+        relationship.known_party_email.as_deref(),
+        Some("first@example.com")
+    );
 }
 
 #[test]
@@ -990,7 +1028,10 @@ fn command_set_without_bool_validates_via_state_after_flush() {
         .get::<OutgoingRelationships<KnownContactDetails>>(source)
         .unwrap();
     let relationship = outgoing.get(target).unwrap();
-    assert_eq!(relationship.known_party_email.as_deref(), Some("new@example.com"));
+    assert_eq!(
+        relationship.known_party_email.as_deref(),
+        Some("new@example.com")
+    );
 }
 
 #[test]
@@ -1031,8 +1072,14 @@ fn set_overwrites_existing_relationship_payload() {
         .get::<OutgoingRelationships<KnownContactDetails>>(source)
         .unwrap();
     let relationship = outgoing.get(target).unwrap();
-    assert_eq!(relationship.known_party_email.as_deref(), Some("new@example.com"));
-    assert_eq!(relationship.known_party_phone.as_deref(), Some("+1-222-0000"));
+    assert_eq!(
+        relationship.known_party_email.as_deref(),
+        Some("new@example.com")
+    );
+    assert_eq!(
+        relationship.known_party_phone.as_deref(),
+        Some("+1-222-0000")
+    );
 }
 
 #[test]
@@ -1073,7 +1120,10 @@ fn add_does_not_overwrite_existing_relationship_payload() {
         .get::<OutgoingRelationships<KnownContactDetails>>(source)
         .unwrap();
     let relationship = outgoing.get(target).unwrap();
-    assert_eq!(relationship.known_party_email.as_deref(), Some("first@example.com"));
+    assert_eq!(
+        relationship.known_party_email.as_deref(),
+        Some("first@example.com")
+    );
 }
 
 // -----------------------------------------------------------------------------

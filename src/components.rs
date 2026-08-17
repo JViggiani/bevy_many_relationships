@@ -1,8 +1,8 @@
-use std::marker::PhantomData;
 use bevy::ecs::entity::{EntityHashMap, EntityHashSet};
 use bevy::ecs::lifecycle::HookContext;
 use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
+use std::marker::PhantomData;
 
 use crate::commands::set_many_relationship;
 
@@ -93,7 +93,7 @@ impl<R: Send + Sync + 'static> OutgoingRelationships<R> {
 #[derive(Component)]
 pub struct IncomingRelationships<R: Send + Sync + 'static> {
     sources: EntityHashSet,
-    _marker: PhantomData<R>, 
+    _marker: PhantomData<R>,
 }
 
 impl<R: Send + Sync + 'static> IncomingRelationships<R> {

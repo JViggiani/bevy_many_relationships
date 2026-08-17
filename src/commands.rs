@@ -44,10 +44,16 @@ pub trait ManyRelatedEntityCommands {
     fn remove_outgoing_to<R: Send + Sync + 'static>(&mut self, target: Entity) -> &mut Self;
 
     /// Legacy helper for marker/default payload relationships.
-    fn add_one_many_related<R: Send + Sync + Default + 'static>(&mut self, related: Entity) -> &mut Self;
+    fn add_one_many_related<R: Send + Sync + Default + 'static>(
+        &mut self,
+        related: Entity,
+    ) -> &mut Self;
 
     /// Legacy helper for marker/default payload relationships.
-    fn add_many_related<R: Send + Sync + Default + 'static>(&mut self, related: &[Entity]) -> &mut Self;
+    fn add_many_related<R: Send + Sync + Default + 'static>(
+        &mut self,
+        related: &[Entity],
+    ) -> &mut Self;
 
     /// Removes many-relationships of type `R` from the given related entities to this entity.
     fn remove_many_related<R: Send + Sync + 'static>(&mut self, related: &[Entity]) -> &mut Self;
@@ -56,7 +62,10 @@ pub trait ManyRelatedEntityCommands {
     fn detach_all_many_related<R: Send + Sync + 'static>(&mut self) -> &mut Self;
 
     /// Spawns one related entity and links it to this entity via relationship type `R`.
-    fn with_many_related<R: Send + Sync + Default + 'static>(&mut self, bundle: impl Bundle) -> &mut Self;
+    fn with_many_related<R: Send + Sync + Default + 'static>(
+        &mut self,
+        bundle: impl Bundle,
+    ) -> &mut Self;
 
     /// Spawns related entities and links each to this entity via relationship type `R`.
     fn with_many_related_entities<R: Send + Sync + Default + 'static>(
@@ -131,11 +140,17 @@ impl<'a> ManyRelatedEntityCommands for EntityCommands<'a> {
         })
     }
 
-    fn add_one_many_related<R: Send + Sync + Default + 'static>(&mut self, related: Entity) -> &mut Self {
+    fn add_one_many_related<R: Send + Sync + Default + 'static>(
+        &mut self,
+        related: Entity,
+    ) -> &mut Self {
         self.add_incoming_from::<R>(related, R::default())
     }
 
-    fn add_many_related<R: Send + Sync + Default + 'static>(&mut self, related: &[Entity]) -> &mut Self {
+    fn add_many_related<R: Send + Sync + Default + 'static>(
+        &mut self,
+        related: &[Entity],
+    ) -> &mut Self {
         let target = self.id();
         let related: Box<[Entity]> = related.into();
         self.queue(move |mut _entity: EntityWorldMut| {
@@ -175,7 +190,10 @@ impl<'a> ManyRelatedEntityCommands for EntityCommands<'a> {
         })
     }
 
-    fn with_many_related<R: Send + Sync + Default + 'static>(&mut self, bundle: impl Bundle) -> &mut Self {
+    fn with_many_related<R: Send + Sync + Default + 'static>(
+        &mut self,
+        bundle: impl Bundle,
+    ) -> &mut Self {
         let target = self.id();
         let source = self.commands().spawn(bundle).id();
         queue_add_many_relationship::<R>(&mut self.commands(), source, target, R::default());
@@ -369,7 +387,8 @@ fn clear_outgoing_edge<R: Send + Sync + 'static>(
     source: Entity,
     target: Entity,
 ) -> bool {
-    let source_empty = if let Some(mut outgoing) = world.get_mut::<OutgoingRelationships<R>>(source) {
+    let source_empty = if let Some(mut outgoing) = world.get_mut::<OutgoingRelationships<R>>(source)
+    {
         if outgoing.remove(&target).is_none() {
             return false;
         }
@@ -379,7 +398,9 @@ fn clear_outgoing_edge<R: Send + Sync + 'static>(
     };
 
     if source_empty {
-        world.entity_mut(source).remove::<OutgoingRelationships<R>>();
+        world
+            .entity_mut(source)
+            .remove::<OutgoingRelationships<R>>();
     }
 
     true
@@ -390,7 +411,8 @@ fn clear_incoming_edge<R: Send + Sync + 'static>(
     source: Entity,
     target: Entity,
 ) -> bool {
-    let target_empty = if let Some(mut incoming) = world.get_mut::<IncomingRelationships<R>>(target) {
+    let target_empty = if let Some(mut incoming) = world.get_mut::<IncomingRelationships<R>>(target)
+    {
         if !incoming.remove(&source) {
             return false;
         }
@@ -400,7 +422,9 @@ fn clear_incoming_edge<R: Send + Sync + 'static>(
     };
 
     if target_empty {
-        world.entity_mut(target).remove::<IncomingRelationships<R>>();
+        world
+            .entity_mut(target)
+            .remove::<IncomingRelationships<R>>();
     }
 
     true
@@ -418,4 +442,3 @@ impl<R: Send + Sync + 'static> Command for AddManyRelationshipCommand<R> {
         let _ = add_many_relationship::<R>(world, self.source, self.target, self.relationship);
     }
 }
-
