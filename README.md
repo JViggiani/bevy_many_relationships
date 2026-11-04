@@ -10,7 +10,7 @@ Bevy's built-in `Relationship` trait supports one-to-one relationships (each ent
 | --- | --- |
 | 0.11 | 0.1.x |
 | 0.18 | 0.3.x |
-| 0.19 | 0.2.x (yanked) |
+| 0.19 | 0.4.x (0.2.x yanked) |
 
 ## Concepts
 

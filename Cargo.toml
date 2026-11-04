@@ -1,6 +1,6 @@
 [package]
 name = "bevy_many_relationships"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 description = "A Bevy plugin for many-to-many relationships between entities"
 license-file = "LICENSE"
