@@ -1,9 +1,13 @@
 use bevy::prelude::*;
 
 /// Event fired when a many-to-many relationship of type `R` is added.
-#[derive(Event)]
+///
+/// An entity event on the source: observe one source with
+/// `commands.entity(source).observe(..)`, or every source with `app.add_observer(..)`.
+#[derive(EntityEvent)]
 pub struct OnManyRelationshipAdded<R: Send + Sync + 'static> {
     /// The source entity (has the outgoing relationship).
+    #[event_target]
     pub source: Entity,
     /// The target entity (has the incoming relationship).
     pub target: Entity,
@@ -21,9 +25,12 @@ impl<R: Send + Sync + 'static> OnManyRelationshipAdded<R> {
 }
 
 /// Event fired when a many-to-many relationship of type `R` is removed.
-#[derive(Event)]
+///
+/// An entity event on the source, like [`OnManyRelationshipAdded`].
+#[derive(EntityEvent)]
 pub struct OnManyRelationshipRemoved<R: Send + Sync + 'static> {
     /// The source entity (had the outgoing relationship).
+    #[event_target]
     pub source: Entity,
     /// The target entity (had the incoming relationship).
     pub target: Entity,

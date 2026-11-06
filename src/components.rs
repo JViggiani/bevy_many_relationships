@@ -4,13 +4,15 @@ use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
 use std::marker::PhantomData;
 
-use crate::commands::set_many_relationship;
+use crate::commands::{detach_incoming_edge, detach_outgoing_edge, set_many_relationship};
 
 /// Tracks all outgoing relationships of type `R` from this entity.
 ///
 /// Each target entity maps to one relationship payload of type `R`.
-/// Automatically managed by entity-level many-relationship commands.
+/// Automatically managed by entity-level many-relationship commands. When it leaves
+/// its entity (removed or despawned), every target drops this source.
 #[derive(Component)]
+#[component(on_remove = Self::on_remove)]
 pub struct OutgoingRelationships<R: Send + Sync + 'static> {
     targets: EntityHashMap<R>,
 }
@@ -79,6 +81,19 @@ impl<R: Send + Sync + 'static> OutgoingRelationships<R> {
     pub fn is_empty(&self) -> bool {
         self.targets.is_empty()
     }
+
+    fn on_remove(mut world: DeferredWorld, context: HookContext) {
+        let source = context.entity;
+        let Some(outgoing) = world.get::<Self>(source) else {
+            return;
+        };
+        let targets: Box<[Entity]> = outgoing.targets().collect();
+        world.commands().queue(move |world: &mut World| {
+            for target in targets {
+                detach_incoming_edge::<R>(world, source, target);
+            }
+        });
+    }
 }
 
 /// Tracks all incoming relationships of type `R` to this entity.
@@ -89,8 +104,10 @@ impl<R: Send + Sync + 'static> OutgoingRelationships<R> {
 /// Payloads are stored only on the source's [`OutgoingRelationships`]. To read a
 /// payload for an incoming edge, fetch the source entity's outgoing map via
 /// [`get_relationship_payload`](crate::commands::get_relationship_payload) or
-/// query `OutgoingRelationships<R>` on the source.
+/// query `OutgoingRelationships<R>` on the source. When it leaves its entity
+/// (removed or despawned), every source drops this target.
 #[derive(Component)]
+#[component(on_remove = Self::on_remove)]
 pub struct IncomingRelationships<R: Send + Sync + 'static> {
     sources: EntityHashSet,
     _marker: PhantomData<R>,
@@ -130,6 +147,19 @@ impl<R: Send + Sync + 'static> IncomingRelationships<R> {
     /// Returns true if there are no sources.
     pub fn is_empty(&self) -> bool {
         self.sources.is_empty()
+    }
+
+    fn on_remove(mut world: DeferredWorld, context: HookContext) {
+        let target = context.entity;
+        let Some(incoming) = world.get::<Self>(target) else {
+            return;
+        };
+        let sources: Box<[Entity]> = incoming.sources().collect();
+        world.commands().queue(move |world: &mut World| {
+            for source in sources {
+                detach_outgoing_edge::<R>(world, source, target);
+            }
+        });
     }
 }
 

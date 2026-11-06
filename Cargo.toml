@@ -1,8 +1,8 @@
 [package]
 name = "bevy_many_relationships"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
-description = "A Bevy plugin for many-to-many relationships between entities"
+description = "A Bevy library for many-to-many relationships between entities"
 license-file = "LICENSE"
 repository = "https://github.com/JViggiani/bevy_many_relationships"
 homepage = "https://github.com/JViggiani/bevy_many_relationships"
@@ -13,7 +13,7 @@ categories = ["game-development", "data-structures"]
 authors = ["Josh Viggiani"]
 
 [dependencies]
-bevy = { version = "0.19", default-features = false, features = ["bevy_log"] }
+bevy = { version = "0.20", default-features = false, features = ["bevy_log"] }
 
 [dev-dependencies]
-bevy = { version = "0.19", default-features = false, features = ["bevy_log"] }
+bevy = { version = "0.20", default-features = false, features = ["bevy_log"] }

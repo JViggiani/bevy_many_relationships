@@ -1,6 +1,6 @@
 # bevy_many_relationships
 
-A Bevy plugin for many-to-many relationships between entities.
+A Bevy library for many-to-many relationships between entities.
 
 Bevy's built-in `Relationship` trait supports one-to-one relationships (each entity has at most one component of a given relationship type). Many game mechanics require many-to-many: a character knows many NPCs, an NPC is known by many characters. This library provides that.
 
@@ -11,6 +11,7 @@ Bevy's built-in `Relationship` trait supports one-to-one relationships (each ent
 | 0.11 | 0.1.x |
 | 0.18 | 0.3.x |
 | 0.19 | 0.4.x (0.2.x yanked) |
+| 0.20 | 0.5.x |
 
 ## Concepts
 
@@ -26,14 +27,6 @@ Define a relationship type as a plain unit struct:
 
 ```rust
 struct KnownContact;
-```
-
-Enable the plugin:
-
-```rust
-fn build(&self, app: &mut App) {
-    app.add_plugins(ManyRelationshipsPlugin);
-}
 ```
 
 Add and remove relationships via entity commands:
@@ -192,6 +185,14 @@ React to changes with observers:
 app.add_observer(|trigger: On<OnManyRelationshipAdded<KnownContact>>| {
     let event = trigger.event();
     println!("Relationship added: {:?} -> {:?}", event.source, event.target);
+});
+```
+
+The events are entity events on the source, so one source can be observed alone:
+
+```rust
+commands.entity(a).observe(|trigger: On<OnManyRelationshipAdded<KnownContact>>| {
+    println!("a now knows {:?}", trigger.event().target);
 });
 ```
 

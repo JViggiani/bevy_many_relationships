@@ -2,7 +2,6 @@ use bevy::prelude::*;
 
 use crate::components::{IncomingRelationships, OutgoingRelationships};
 use crate::events::{OnManyRelationshipAdded, OnManyRelationshipRemoved};
-use crate::plugin::ensure_many_relationship_registered;
 
 /// Extension trait on `EntityCommands` for many-relationship ergonomics.
 pub trait ManyRelatedEntityCommands {
@@ -272,8 +271,6 @@ pub fn add_many_relationship<R: Send + Sync + 'static>(
     target: Entity,
     relationship: R,
 ) -> bool {
-    ensure_many_relationship_registered::<R>(world);
-
     let added_new = if let Some(mut outgoing) = world.get_mut::<OutgoingRelationships<R>>(source) {
         outgoing.add(target, relationship)
     } else {
@@ -306,8 +303,6 @@ pub fn set_many_relationship<R: Send + Sync + 'static>(
     target: Entity,
     relationship: R,
 ) -> bool {
-    ensure_many_relationship_registered::<R>(world);
-
     let added_new = if let Some(mut outgoing) = world.get_mut::<OutgoingRelationships<R>>(source) {
         outgoing.set(target, relationship).is_none()
     } else {
@@ -337,8 +332,6 @@ pub fn remove_many_relationship<R: Send + Sync + 'static>(
     source: Entity,
     target: Entity,
 ) -> bool {
-    ensure_many_relationship_registered::<R>(world);
-
     if !clear_outgoing_edge::<R>(world, source, target) {
         return false;
     }

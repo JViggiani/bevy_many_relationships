@@ -17,12 +17,10 @@ struct KnownContactDetails {
 }
 
 fn test_app() -> App {
-    let mut app = App::new();
-    app.add_plugins(ManyRelationshipsPlugin);
-    app
+    App::new()
 }
 
-/// GIVEN an app with ManyRelationshipsPlugin
+/// GIVEN an app
 /// WHEN entity(b).add_one_many_related::<KnownContact>(a) is called and app.update() runs
 /// THEN entity a has OutgoingRelationships<KnownContact> containing b
 /// AND entity b has IncomingRelationships<KnownContact> containing a
@@ -250,6 +248,32 @@ fn observer_fires_on_add() {
     let observed = app.world().resource::<ObservedAdds>();
     assert_eq!(observed.pairs.len(), 1);
     assert_eq!(observed.pairs[0], (a, b));
+}
+
+/// GIVEN an observer of OnManyRelationshipAdded<KnownContact> on source a only
+/// WHEN a gains an edge, then another source c gains one
+/// THEN the observer fires for a's edge alone
+#[test]
+fn entity_observer_fires_for_its_source_only() {
+    let mut app = test_app();
+
+    #[derive(Resource, Default)]
+    struct ObservedTargets(Vec<Entity>);
+    app.init_resource::<ObservedTargets>();
+
+    let a = app.world_mut().spawn_empty().id();
+    let b = app.world_mut().spawn_empty().id();
+    let c = app.world_mut().spawn_empty().id();
+    app.world_mut().entity_mut(a).observe(
+        |trigger: On<OnManyRelationshipAdded<KnownContact>>, mut observed: ResMut<ObservedTargets>| {
+            observed.0.push(trigger.event().target);
+        },
+    );
+
+    add_many_relationship(app.world_mut(), a, b, KnownContact);
+    add_many_relationship(app.world_mut(), c, b, KnownContact);
+
+    assert_eq!(app.world().resource::<ObservedTargets>().0, vec![b]);
 }
 
 /// GIVEN entity a has OutgoingRelationships<KnownContact> containing {b}
